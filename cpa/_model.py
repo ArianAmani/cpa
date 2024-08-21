@@ -96,7 +96,7 @@ class CPA(BaseModelClass):
         valid_split: Union[str, List[str]] = "test",
         test_split: Union[str, List[str]] = "ood",
         use_rdkit_embeddings: bool = False,
-        cell_representation_layer: Optional[str] = None,
+        cell_representation_key: Optional[str] = None,
         **hyper_params,
     ):
         super().__init__(adata)
@@ -114,8 +114,8 @@ class CPA(BaseModelClass):
             drug_embeddings = self.__get_rdkit_embeddings()
             hyper_params['drug_embeddings'] = drug_embeddings
 
-        n_input_representation = adata.layers[cell_representation_layer].shape[
-            1] if cell_representation_layer is not None else None
+        n_input_representation = adata.obsm[cell_representation_key].shape[
+            1] if cell_representation_key is not None else None
         self.module = CPAModule(
             n_genes=adata.n_vars,
             n_perts=len(self.pert_encoder),
@@ -193,7 +193,7 @@ class CPA(BaseModelClass):
         dosage_key: Optional[str] = None,
         batch_key: Optional[str] = None,
         layer: Optional[str] = None,
-        cell_representation_layer: Optional[str] = None,
+        cell_representation_key: Optional[str] = None,
         smiles_key: Optional[str] = None,
         is_count_data: Optional[bool] = True,
         categorical_covariate_keys: Optional[List[str]] = [],
@@ -335,9 +335,9 @@ class CPA(BaseModelClass):
                 layer=layer,
                 is_count_data=is_count_data,
             ),
-            LayerField(
+            ObsmField(
                 registry_key=CPA_REGISTRY_KEYS.CELL_REP_KEY,
-                layer=cell_representation_layer,
+                layer=cell_representation_key,
                 is_count_data=False,
             ),
             ObsmField(
