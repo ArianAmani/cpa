@@ -336,8 +336,8 @@ class CPA(BaseModelClass):
                 is_count_data=is_count_data,
             ),
             ObsmField(
-                registry_key=CPA_REGISTRY_KEYS.CELL_REP_KEY,
-                layer=cell_representation_key,
+                CPA_REGISTRY_KEYS.CELL_REP_KEY,
+                cell_representation_key,
                 is_count_data=False,
             ),
             ObsmField(
