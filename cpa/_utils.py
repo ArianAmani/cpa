@@ -12,6 +12,7 @@ from typing import Optional
 
 class _REGISTRY_KEYS:
     X_KEY: str = "X"
+    CELL_REP_KEY: str = "cell_representation"
     X_CTRL_KEY: str = None
     BATCH_KEY: str = None
     CATEGORY_KEY: str = "cpa_category"

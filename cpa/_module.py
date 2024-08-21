@@ -70,6 +70,7 @@ class CPAModule(BaseModuleClass):
                  n_perts: int,
                  covars_encoder: dict,
                  drug_embeddings: Optional[np.ndarray] = None,
+                 n_input_representation: Optional[int] = None,
                  n_latent: int = 128,
                  recon_loss: str = "nb",
                  doser_type: str = "logsigm",
@@ -99,6 +100,7 @@ class CPAModule(BaseModuleClass):
 
         self.n_genes = n_genes
         self.n_perts = n_perts
+        self.n_input_representation = n_input_representation
         self.n_latent = n_latent
         self.recon_loss = recon_loss
         self.doser_type = doser_type
@@ -108,7 +110,7 @@ class CPAModule(BaseModuleClass):
 
         if variational:
             self.encoder = Encoder(
-                n_genes,
+                n_genes if n_input_representation is None else n_input_representation,
                 n_latent,
                 var_activation=nn.Softplus(),
                 n_hidden=n_hidden_encoder,
@@ -121,7 +123,7 @@ class CPAModule(BaseModuleClass):
             )
         else:
             self.encoder = VanillaEncoder(
-                n_input=n_genes,
+                n_input=n_genes if n_input_representation is None else n_input_representation,
                 n_output=n_latent,
                 n_cat_list=[],
                 n_hidden=n_hidden_encoder,
@@ -197,6 +199,8 @@ class CPAModule(BaseModuleClass):
             mixup_lambda = np.random.beta(alpha, alpha)
 
         x = tensors[CPA_REGISTRY_KEYS.X_KEY]
+        if self.n_input_representation is not None:
+            x_rep = tensors[CPA_REGISTRY_KEYS.CELL_REP_KEY]
         y_perturbations = tensors[CPA_REGISTRY_KEYS.PERTURBATION_KEY]
         perturbations = tensors[CPA_REGISTRY_KEYS.PERTURBATIONS]
         perturbations_dosages = tensors[CPA_REGISTRY_KEYS.PERTURBATIONS_DOSAGES]
@@ -205,10 +209,16 @@ class CPAModule(BaseModuleClass):
         index = torch.randperm(batch_size).to(x.device)
 
         mixed_x = mixup_lambda * x + (1. - mixup_lambda) * x[index, :]
+        if self.n_input_representation is not None:
+            mixed_x_rep = mixup_lambda * x_rep + (1. - mixup_lambda) * x_rep[index, :]
 
         tensors[CPA_REGISTRY_KEYS.X_KEY] = mixed_x
         tensors[CPA_REGISTRY_KEYS.X_KEY + '_true'] = x
         tensors[CPA_REGISTRY_KEYS.X_KEY + '_mixup'] = x[index]
+        if self.n_input_representation is not None:
+            tensors[CPA_REGISTRY_KEYS.CELL_REP_KEY] = mixed_x_rep
+            tensors[CPA_REGISTRY_KEYS.CELL_REP_KEY + '_true'] = x_rep
+            tensors[CPA_REGISTRY_KEYS.CELL_REP_KEY + '_mixup'] = x_rep[index]
         tensors[CPA_REGISTRY_KEYS.PERTURBATION_KEY + '_mixup'] = y_perturbations[index]
         tensors[CPA_REGISTRY_KEYS.PERTURBATIONS + '_mixup'] = perturbations[index]
         tensors[CPA_REGISTRY_KEYS.PERTURBATIONS_DOSAGES + '_mixup'] = perturbations_dosages[index]
@@ -219,7 +229,14 @@ class CPAModule(BaseModuleClass):
         return tensors, mixup_lambda
 
     def _get_inference_input(self, tensors):
-        x = tensors[CPA_REGISTRY_KEYS.X_KEY]  # batch_size, n_genes
+        x = tensors[CPA_REGISTRY_KEYS.X_KEY]
+        library = torch.log(x.sum(1)).unsqueeze(1)
+        
+        if self.n_input_representation is not None:
+            x = tensors[CPA_REGISTRY_KEYS.CELL_REP_KEY]  # batch_size, n_input_representation
+        else:
+            x = tensors[CPA_REGISTRY_KEYS.X_KEY]  # batch_size, n_genes
+            
         perts = {
             'true': tensors[CPA_REGISTRY_KEYS.PERTURBATIONS],
             'mixup': tensors[CPA_REGISTRY_KEYS.PERTURBATIONS + '_mixup']
@@ -238,6 +255,7 @@ class CPAModule(BaseModuleClass):
 
         return dict(
             x=x,
+            library=library,
             perts=perts,
             perts_doses=perts_doses,
             covars_dict=covars_dict,
@@ -247,6 +265,7 @@ class CPAModule(BaseModuleClass):
     def inference(
             self,
             x,
+            library,
             perts,
             perts_doses,
             covars_dict,
@@ -258,9 +277,12 @@ class CPAModule(BaseModuleClass):
 
         if self.recon_loss in ['nb', 'zinb']:
             # log the input to the variational distribution for numerical stability
-            x_ = torch.log(1 + x)
-
-            library = torch.log(x.sum(1)).unsqueeze(1)
+            if self.n_input_representation is None:
+                x_ = torch.log(1 + x)
+                library = torch.log(x.sum(1)).unsqueeze(1)
+            else:
+                x_ = x
+                library = library
         else:
             x_ = x
             library = None, None
