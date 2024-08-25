@@ -336,11 +336,6 @@ class CPA(BaseModelClass):
                 is_count_data=is_count_data,
             ),
             ObsmField(
-                CPA_REGISTRY_KEYS.CELL_REP_KEY,
-                cell_representation_key,
-                is_count_data=False,
-            ),
-            ObsmField(
                 CPA_REGISTRY_KEYS.PERTURBATIONS,
                 CPA_REGISTRY_KEYS.PERTURBATIONS,
                 is_count_data=True,
@@ -360,6 +355,14 @@ class CPA(BaseModelClass):
             CategoricalObsField(registry_key=covar, attr_key=covar)
             for covar in categorical_covariate_keys
         ]
+        if cell_representation_key is not None:
+            anndata_fields.append(
+                ObsmField(
+                    CPA_REGISTRY_KEYS.CELL_REP_KEY,
+                    cell_representation_key,
+                    is_count_data=False,
+                ),
+            )
 
         anndata_fields.append(
             NumericalObsField(registry_key=control_key, attr_key=control_key)
