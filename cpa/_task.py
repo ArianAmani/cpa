@@ -301,7 +301,7 @@ class CPATrainingPlan(TrainingPlan):
                 covars_dict[covar + '_mixup'].long(),
             ) if covars_pred[covar] is not None else torch.as_tensor(0.0).to(self.device)
             adv_results[f'acc_{covar}'] = accuracy(
-                covars_pred[covar].argmax(1), covars_dict[covar].long(), task='multiclass',
+                covars_pred[covar].detach().argmax(1), covars_dict[covar].long().detach(), task='multiclass',
                 num_classes=len(covars)) \
                 if covars_pred[covar] is not None else torch.as_tensor(0.0).to(self.device)
 
@@ -318,10 +318,10 @@ class CPATrainingPlan(TrainingPlan):
                                                                                     perturbations_mixup.long())
 
         adv_results['acc_perts'] = mixup_lambda * accuracy(
-            perturbations_pred.argmax(1), perturbations.long().view(-1, ), average='macro',
+            perturbations_pred.detach().argmax(1), perturbations.long().view(-1, ).detach(), average='macro',
             num_classes=self.n_adv_perts, task='multiclass',
         ) + (1. - mixup_lambda) * accuracy(
-            perturbations_pred.argmax(1), perturbations_mixup.long().view(-1, ), average='macro',
+            perturbations_pred.detach().argmax(1), perturbations_mixup.long().view(-1, ).detach(), average='macro',
             num_classes=self.n_adv_perts, task='multiclass',
         )
 
