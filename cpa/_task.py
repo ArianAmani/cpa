@@ -318,10 +318,10 @@ class CPATrainingPlan(TrainingPlan):
                                                                                     perturbations_mixup.long())
 
         adv_results['acc_perts'] = mixup_lambda * accuracy(
-            perturbations_pred.detach().argmax(1), perturbations.long().view(-1, ).detach(), average='macro',
+            perturbations_pred.detach().argmax(1), perturbations.long().view(-1, ).detach(), average='micro',
             num_classes=self.n_adv_perts, task='multiclass',
         ) + (1. - mixup_lambda) * accuracy(
-            perturbations_pred.detach().argmax(1), perturbations_mixup.long().view(-1, ).detach(), average='macro',
+            perturbations_pred.detach().argmax(1), perturbations_mixup.long().view(-1, ).detach(), average='micro',
             num_classes=self.n_adv_perts, task='multiclass',
         )
 
